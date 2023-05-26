@@ -1,0 +1,231 @@
+﻿@{
+	ViewData["Title"] = "Pedidos";
+}
+
+<div class="card card-info">
+	<div class="card-header">
+		<h3 class="text-center">PEDIDOS</h3>
+	</div>
+	<div class="card-body">
+		<div class="row">
+			<div class="col">
+				<input type="hidden" id="Id_Orden" value="" />
+				<label>Cliente:</label>
+				<select class="form-control" id="cod_cliente" asp-items="@(new SelectList(ViewBag.cliente, "cod_cliente", "clie_nomb"))">
+					<option>Seleccione cliente</option>
+				</select>
+			</div>		
+		</div>
+		<div class="row">
+			<div class="col">
+				<label>Fecha:</label>
+				<input type="datetime-local" class="form-control" placeholder="Fecha" id="ord_fecha" name="ord_fecha">
+			</div>
+			<div class="col">
+				<label>Total:</label>
+				<input type="number" step="0.01" class="form-control" placeholder="Total" id="ord_precio_total" name="ord_precio_total">
+			</div>			
+		</div>
+		<br />		
+		<div>
+			<label>DETALLE PEDIDO</label>
+			<hr>
+			<!--inicio detalle pedido-->
+			<div class="row">
+				<div class="col">
+					<label>Producto:</label>
+					<select class="form-control" id="cod_producto" asp-items="@(new SelectList(ViewBag.producto, "cod_producto", "prod_descripcion"))">
+						<option>Seleccione producto</option>
+					</select>
+				</div>
+			</div>
+			<div class="row align-items-end">
+				<div class="col-3">
+					<label>Cantidad</label>
+					<input type="number" class="form-control" id="detped_cantidad" name="detped_cantidad">
+				</div>
+				<div class="col-3">
+					<label>Precio Unitario</label>
+					<input type="number" step="0.01" class="form-control" id="detped_precunit" name="detped_precunit">
+				</div>
+				<div class="col-md-6">
+					<button id="btnproduct" class="btn btn-success btn-sm">Agregar +</button>
+				</div>
+			</div>
+			<!--fin detalle pedido-->
+		</div>
+		<hr>
+		<table id="tbProducto" class="table table-striped table-bordered content-table" style="width: 100%">
+			<thead>
+				<tr>
+					<th class="d-none">cod_producto</th>
+					<th>Descripcion</th>
+					<th>Cantidad</th>
+					<th>Precio Unitario</th>
+					<th>SubTotal</th>
+					<th>Acciones</th>
+				</tr>
+			</thead>
+			<tbody>
+			</tbody>
+		</table>
+		<br />
+		<div class="row">
+			<div class="col-md-6">
+				<button id="btnsave" class="btn btn-success btn-sm">Guardar</button>
+				<button id="btnAddnew" class="btn btn-primary btn-sm">Limpiar Datos</button>
+			</div>
+		</div>	
+		<br />	
+		<label>PEDIDOS GRABADOS</label>		
+		<div class="container-lg">
+			<table id="tbPedido" class="table table-striped table-bordered content-table" style="width: 100%">
+				<thead>
+					<tr>
+						<th class="d-none">Id_Orden</th>
+						<th>Fecha Pedido</th>
+						<th>Cliente</th>
+						<th>Total</th>
+					</tr>
+				</thead>
+				<tbody>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+@section Scripts {
+	<script type="text/javascript">
+		$(document).ready(function () {
+			$(function () {
+				$("#cod_cliente").select2({
+				});
+
+				$("#cod_producto").select2({
+				});
+			});
+
+			$("#btnproduct").on("click", function () {
+				var subtotal = parseFloat($("#detped_cantidad").val()) * parseFloat($("#detped_precunit").val())				
+				var producto = $("#cod_producto").find('option:selected').text();
+				var cod_producto = $("#cod_producto").val();
+				if (cod_producto != null) {
+					$("#tbProducto tbody").append(
+						$("<tr>").append(
+							$("<td class='d-none'>").text($("#cod_producto").val()),
+							$("<td>").text(producto),
+							$("<td>").text($("#detped_cantidad").val()),
+							$("<td>").text($("#detped_precunit").val()),
+							$("<td>").text(subtotal),
+							$("<td>").append("<button class='btn btn-success btn-sm remove'>Eliminar</button>"),
+						)
+
+					);
+				}
+				else {
+					swal('Mensaje de advertencia', 'Seleccione al menos un producto', 'error');
+				}				
+				$("#cod_producto").val("");
+				$("#detped_cantidad").val("");
+				$("#detped_precunit").val("");
+			});
+			
+			//boton que elimina las filas no deseadas
+			$("#tbProducto").on("click", ".remove", function (event) {
+				event.preventDefault();
+				$(this).closest('tr').remove();
+			});
+
+			$('#tbPedido').DataTable({
+				"ajax": {
+					"url": "/api/APedido",
+					"dataSrc": ""
+				},
+				"pageLength": 15,
+				"language": {
+					"lengthMenu": "Mostrar _MENU_ registros por pagina",
+					"zeroRecords": "No se encontraron registros",
+					"info": "Mostrar pagina _PAGE_ de _PAGES_",
+					"infoEmpty": "No se encontraron registros",
+					"infoFiltered": "(filtrado de _MAX_ registros totales)",
+					"search": "Buscar:",
+					"paginate": {
+						"next": "siguiente",
+						"previous": "Anterior"
+					}
+				},
+				"scrollX": true,
+				"responsive": true,
+				"columns": [
+					{ data: 'Id_Orden', "visible": false },
+					{ data: 'ord_fecha' },
+					{ data: 'clie_nomb' },
+					{ data: 'ord_precio_total' }				
+				]
+			});
+
+			$("#btnsave").click(function () {
+				var oDetalle_Pedidos = []
+				var totalac = 0;
+
+
+				$("#tbProducto > tbody > tr").each(function (i, tr) {
+
+					oDetalle_Pedidos.push(
+						{
+							cod_producto: $(tr).find('td:eq(0)').text(),
+							desc_producto: $(tr).find('td:eq(1)').text(),
+							detped_cantidad: $(tr).find('td:eq(2)').text(),
+							detped_precunit: $(tr).find('td:eq(3)').text(),
+							detped_subtotal: $(tr).find('td:eq(4)').text()
+						}
+					)
+					totalac = totalac + parseFloat($(tr).find('td:eq(4)').text());
+
+				})
+				$("#ord_precio_total").val(totalac);
+				var oPedido = {
+					oPedidocab: {
+						Id_Orden: $("#Id_Orden").val() == "" ? 0 : $("#Id_Orden").val(),
+						ord_fecha: $("#ord_fecha").val(),
+						cod_cliente: $("#cod_cliente").val(),
+						ord_precio_total: $("#ord_precio_total").val()
+					},
+					oDetalle_Pedidos: oDetalle_Pedidos
+				}
+
+				console.log(oPedido);
+				jQuery.ajax({
+					url: '@Url.Action("PagoPedido","Pedido")',
+					type: "POST",
+					data: JSON.stringify(oPedido),
+					datatype: "json",
+					contentType: "application/json; charset=utf-8",
+					success: function (result) {
+						Reset();
+						ReloadGrid();
+						swal('Mensaje de confirmacion', 'Registro grabado', 'success');
+					}
+				});
+
+			});
+
+			$("#btnAddnew").click(function () {
+				Reset();
+			});
+		});
+
+		function Reset() {
+			$("#Id_Orden").val(0);
+			$("#ord_fecha").val("");
+			$("#clie_nomb").val("");
+			$("#ord_precio_total").val(0);
+		}
+		function ReloadGrid() {
+			$("#tbPedido").DataTable().clear();
+			$("#tbPedido").DataTable().ajax.reload();
+		}
+
+
+	</script>
+}
